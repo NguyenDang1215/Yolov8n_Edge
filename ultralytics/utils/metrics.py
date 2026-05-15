@@ -85,27 +85,10 @@ def bbox_iou(
     GIoU: bool = False,
     DIoU: bool = False,
     CIoU: bool = False,
+    WIoU: bool = False, # Khai báo WIoU
     eps: float = 1e-7,
 ) -> torch.Tensor:
-    """Calculate the Intersection over Union (IoU) between bounding boxes.
-
-    This function supports various shapes for `box1` and `box2` as long as the last dimension is 4. For instance, you
-    may pass tensors shaped like (4,), (N, 4), (B, N, 4), or (B, N, 1, 4). Internally, the code will split the last
-    dimension into (x, y, w, h) if `xywh=True`, or (x1, y1, x2, y2) if `xywh=False`.
-
-    Args:
-        box1 (torch.Tensor): A tensor representing one or more bounding boxes, with the last dimension being 4.
-        box2 (torch.Tensor): A tensor representing one or more bounding boxes, with the last dimension being 4.
-        xywh (bool, optional): If True, input boxes are in (x, y, w, h) format. If False, input boxes are in (x1, y1,
-            x2, y2) format.
-        GIoU (bool, optional): If True, calculate Generalized IoU.
-        DIoU (bool, optional): If True, calculate Distance IoU.
-        CIoU (bool, optional): If True, calculate Complete IoU.
-        eps (float, optional): A small value to avoid division by zero.
-
-    Returns:
-        (torch.Tensor): IoU, GIoU, DIoU, or CIoU values depending on the specified flags.
-    """
+    """Calculate the Intersection over Union (IoU) between bounding boxes."""
     # Get the coordinates of bounding boxes
     if xywh:  # transform from xywh to xyxy
         (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, -1), box2.chunk(4, -1)
@@ -128,24 +111,50 @@ def bbox_iou(
 
     # IoU
     iou = inter / union
-    if CIoU or DIoU or GIoU:
+    
+    # THÊM WIoU VÀO ĐIỀU KIỆN NÀY
+    if CIoU or DIoU or GIoU or WIoU:
         cw = b1_x2.maximum(b2_x2) - b1_x1.minimum(b2_x1)  # convex (smallest enclosing box) width
         ch = b1_y2.maximum(b2_y2) - b1_y1.minimum(b2_y1)  # convex height
-        if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
+        
+        # THÊM WIoU VÀO ĐIỀU KIỆN TÍNH KHOẢNG CÁCH TÂM
+        if CIoU or DIoU or WIoU:  
             c2 = cw.pow(2) + ch.pow(2) + eps  # convex diagonal squared
             rho2 = (
                 (b2_x1 + b2_x2 - b1_x1 - b1_x2).pow(2) + (b2_y1 + b2_y2 - b1_y1 - b1_y2).pow(2)
             ) / 4  # center dist**2
-            if CIoU:  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
+            
+            if CIoU:  
+                import math
                 v = (4 / math.pi**2) * ((w2 / h2).atan() - (w1 / h1).atan()).pow(2)
                 with torch.no_grad():
                     alpha = v / (v - iou + (1 + eps))
                 return iou - (rho2 / c2 + v * alpha)  # CIoU
-            return iou - rho2 / c2  # DIoU
-        c_area = cw * ch + eps  # convex area
-        return iou - (c_area - union) / c_area  # GIoU https://arxiv.org/pdf/1902.09630.pdf
-    return iou  # IoU
+                
+            # ==========================================
+            # KHỐI LOGIC CHO WIoUv3 (WISE-IOU)
+            # ==========================================
+            elif WIoU:
+                exp_term = torch.exp((rho2 / c2))
+                dist = exp_term
+                
+                # Tính beta (outlier degree) để đánh giá chất lượng Box
+                iou_nograd = iou.detach()
+                beta = dist / (iou_nograd + eps)
+                
+                # Non-monotonic focus factor (Dynamic penalty)
+                alpha_wiou, delta = 1.9, 3.0
+                r = beta / (delta * torch.pow(alpha_wiou, beta - delta))
+                
+                return iou * exp_term * r  # Trả về WIoU cho KITTI
+            # ==========================================
 
+            return iou - rho2 / c2  # DIoU
+            
+        c_area = cw * ch + eps  # convex area
+        return iou - (c_area - union) / c_area  # GIoU 
+        
+    return iou  # IoU
 
 def mask_iou(mask1: torch.Tensor, mask2: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
     """Calculate masks IoU.
