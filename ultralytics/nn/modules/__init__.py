@@ -18,6 +18,8 @@ Examples:
 """
 
 from .block import (
+    SimAM,
+    SimSPPF,
     C1,
     C2,
     C2PSA,
@@ -61,6 +63,7 @@ from .block import (
     TorchVision,
 )
 from .conv import (
+    SimConv,
     CBAM,
     ChannelAttention,
     Concat,
@@ -107,6 +110,8 @@ from .transformer import (
 )
 
 __all__ = (
+    "SimConv",
+    "SimSPPF",
     "AIFI",
     "C1",
     "C2",

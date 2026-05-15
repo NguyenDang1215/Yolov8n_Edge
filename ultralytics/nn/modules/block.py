@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from ultralytics.utils.torch_utils import fuse_conv_and_bn
 
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, SimConv, autopad
 from .transformer import TransformerBlock
 
 __all__ = (
@@ -52,6 +52,7 @@ __all__ = (
     "ResNetLayer",
     "SCDown",
     "TorchVision",
+    "SimSPPF",
 )
 
 
@@ -2071,3 +2072,75 @@ class RealNVP(nn.Module):
             self.float()
         z, log_det = self.backward_p(x)
         return self.prior.log_prob(z) + log_det
+
+
+#New customclasses
+
+class SimSPPF(nn.Module):
+    '''Simplified SPPF with ReLU VAN_activation'''
+    
+    def __init__(self, c1, c2, k=5):
+        super().__init__()
+        c_ = c1 // 2  # hidden channels
+        self.cv1 = SimConv(c1, c_, 1, 1)
+        self.cv2 = SimConv(c_ * 4, c2, 1, 1)
+        self.m = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
+        self.simam = SimAM()
+    
+    def forward(self, x):
+        x = self.cv1(x)
+        y1 = self.m(x)
+        y2 = self.m(y1)
+        y3 = self.m(y2)
+        out = torch.cat([x, y1, y2, y3], 1)
+        out = self.simam(out)
+        return self.cv2(out)
+
+class SimAM(nn.Module):
+
+    def __init__(self, e_lambda=1e-4):
+        super(SimAM, self).__init__()
+
+        self.activaton = nn.Sigmoid()
+
+        self.e_lambda = e_lambda
+
+    def __repr__(self):
+
+        s = self.__class__.__name__ + "("
+
+        s += "lambda=%f)" % self.e_lambda
+
+        return s
+
+    @staticmethod
+    def get_module_name():
+
+        return "simam"
+
+    def forward(self, x):
+
+        b, c, h, w = x.size()
+
+        n = w * h - 1
+
+        x_minus_mu_square = (
+            x - x.mean(dim=[2, 3], keepdim=True)
+        ).pow(2)
+
+        y = (
+            x_minus_mu_square
+            / (
+                4
+                * (
+                    x_minus_mu_square.sum(
+                        dim=[2, 3],
+                        keepdim=True
+                    ) / n
+                    + self.e_lambda
+                )
+            )
+            + 0.5
+        )
+
+        return x * self.activaton(y)
