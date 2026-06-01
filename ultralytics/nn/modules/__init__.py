@@ -18,8 +18,6 @@ Examples:
 """
 
 from .block import (
-    SimAM,
-    SimSPPF,
     C1,
     C2,
     C2PSA,
@@ -60,10 +58,11 @@ from .block import (
     RepVGGDW,
     ResNetLayer,
     SCDown,
+    SimAM,
+    SimSPPF,
     TorchVision,
 )
 from .conv import (
-    SimConv,
     CBAM,
     ChannelAttention,
     Concat,
@@ -77,6 +76,7 @@ from .conv import (
     Index,
     LightConv,
     RepConv,
+    SimConv,
     SpatialAttention,
 )
 from .head import (
@@ -110,8 +110,6 @@ from .transformer import (
 )
 
 __all__ = (
-    "SimConv",
-    "SimSPPF",
     "AIFI",
     "C1",
     "C2",
@@ -182,6 +180,8 @@ __all__ = (
     "SCDown",
     "Segment",
     "Segment26",
+    "SimConv",
+    "SimSPPF",
     "SpatialAttention",
     "TorchVision",
     "TransformerBlock",
