@@ -12,8 +12,6 @@ import torch.nn as nn
 
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import (
-    SimAM,
-    SimSPPF,
     AIFI,
     C1,
     C2,
@@ -68,6 +66,7 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
+    SimSPPF,
     TorchVision,
     WorldDetect,
     YOLOEDetect,
@@ -75,7 +74,6 @@ from ultralytics.nn.modules import (
     YOLOESegment26,
     v10Detect,
 )
-
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, SETTINGS, WINDOWS, YAML, colorstr, emojis
 from ultralytics.utils.checks import REMOTE_FILE_PREFIXES, check_file, check_requirements, check_suffix, check_yaml
 from ultralytics.utils.loss import (
