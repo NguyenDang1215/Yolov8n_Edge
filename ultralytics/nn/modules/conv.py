@@ -7,7 +7,7 @@ import math
 
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 
 __all__ = (
     "CBAM",
@@ -23,8 +23,8 @@ __all__ = (
     "Index",
     "LightConv",
     "RepConv",
-    "SpatialAttention",
     "SimConv",
+    "SpatialAttention",
 )
 
 
@@ -669,20 +669,21 @@ class Index(nn.Module):
         """
         return x[self.index]
 
+
 # New custom convolution module
 class SimConv(nn.Module):
-    '''Normal Conv with ReLU VAN_activation'''
-    
+    """Normal Conv with ReLU VAN_activation."""
+
     def __init__(self, c1, c2, k=1, s=1, g=1, d=1, bias=False, p=None):
         super().__init__()
-       
+
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
         self.bn = nn.BatchNorm2d(c2)
-        #self.act = nn.LeakyReLU()
+        # self.act = nn.LeakyReLU()
         self.act = nn.Mish()
-    
+
     def forward(self, x):
         return self.act(self.bn(self.conv(x)))
-    
+
     def forward_fuse(self, x):
         return self.act(self.conv(x))
