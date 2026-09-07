@@ -85,7 +85,7 @@ def bbox_iou(
     GIoU: bool = False,
     DIoU: bool = False,
     CIoU: bool = False,
-    WIoU: bool = False, # Khai báo WIoU
+    WIoU: bool = False,  # Khai báo WIoU
     eps: float = 1e-7,
 ) -> torch.Tensor:
     """Calculate the Intersection over Union (IoU) between bounding boxes."""
@@ -111,50 +111,52 @@ def bbox_iou(
 
     # IoU
     iou = inter / union
-    
+
     # THÊM WIoU VÀO ĐIỀU KIỆN NÀY
     if CIoU or DIoU or GIoU or WIoU:
         cw = b1_x2.maximum(b2_x2) - b1_x1.minimum(b2_x1)  # convex (smallest enclosing box) width
         ch = b1_y2.maximum(b2_y2) - b1_y1.minimum(b2_y1)  # convex height
-        
+
         # THÊM WIoU VÀO ĐIỀU KIỆN TÍNH KHOẢNG CÁCH TÂM
-        if CIoU or DIoU or WIoU:  
+        if CIoU or DIoU or WIoU:
             c2 = cw.pow(2) + ch.pow(2) + eps  # convex diagonal squared
             rho2 = (
                 (b2_x1 + b2_x2 - b1_x1 - b1_x2).pow(2) + (b2_y1 + b2_y2 - b1_y1 - b1_y2).pow(2)
             ) / 4  # center dist**2
-            
-            if CIoU:  
+
+            if CIoU:
                 import math
+
                 v = (4 / math.pi**2) * ((w2 / h2).atan() - (w1 / h1).atan()).pow(2)
                 with torch.no_grad():
                     alpha = v / (v - iou + (1 + eps))
                 return iou - (rho2 / c2 + v * alpha)  # CIoU
-                
+
             # ==========================================
             # KHỐI LOGIC CHO WIoUv3 (WISE-IOU)
             # ==========================================
             elif WIoU:
-                exp_term = torch.exp((rho2 / c2))
+                exp_term = torch.exp(rho2 / c2)
                 dist = exp_term
-                
+
                 # Tính beta (outlier degree) để đánh giá chất lượng Box
                 iou_nograd = iou.detach()
                 beta = dist / (iou_nograd + eps)
-                
+
                 # Non-monotonic focus factor (Dynamic penalty)
                 alpha_wiou, delta = 1.9, 3.0
                 r = beta / (delta * torch.pow(alpha_wiou, beta - delta))
-                
+
                 return iou * exp_term * r  # Trả về WIoU cho KITTI
             # ==========================================
 
             return iou - rho2 / c2  # DIoU
-            
+
         c_area = cw * ch + eps  # convex area
-        return iou - (c_area - union) / c_area  # GIoU 
-        
+        return iou - (c_area - union) / c_area  # GIoU
+
     return iou  # IoU
+
 
 def mask_iou(mask1: torch.Tensor, mask2: torch.Tensor, eps: float = 1e-7) -> torch.Tensor:
     """Calculate masks IoU.

@@ -51,8 +51,8 @@ __all__ = (
     "RepVGGDW",
     "ResNetLayer",
     "SCDown",
-    "TorchVision",
     "SimSPPF",
+    "TorchVision",
 )
 
 
@@ -2074,11 +2074,12 @@ class RealNVP(nn.Module):
         return self.prior.log_prob(z) + log_det
 
 
-#New customclasses
+# New customclasses
+
 
 class SimSPPF(nn.Module):
-    '''Simplified SPPF with ReLU VAN_activation'''
-    
+    """Simplified SPPF with ReLU VAN_activation."""
+
     def __init__(self, c1, c2, k=5):
         super().__init__()
         c_ = c1 // 2  # hidden channels
@@ -2086,7 +2087,7 @@ class SimSPPF(nn.Module):
         self.cv2 = SimConv(c_ * 4, c2, 1, 1)
         self.m = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
         self.simam = SimAM()
-    
+
     def forward(self, x):
         x = self.cv1(x)
         y1 = self.m(x)
@@ -2096,10 +2097,10 @@ class SimSPPF(nn.Module):
         out = self.simam(out)
         return self.cv2(out)
 
-class SimAM(nn.Module):
 
+class SimAM(nn.Module):
     def __init__(self, e_lambda=1e-4):
-        super(SimAM, self).__init__()
+        super().__init__()
 
         self.activaton = nn.Sigmoid()
 
@@ -2109,7 +2110,7 @@ class SimAM(nn.Module):
 
         s = self.__class__.__name__ + "("
 
-        s += "lambda=%f)" % self.e_lambda
+        s += f"lambda={self.e_lambda:f})"
 
         return s
 
@@ -2120,27 +2121,12 @@ class SimAM(nn.Module):
 
     def forward(self, x):
 
-        b, c, h, w = x.size()
+        _b, _c, h, w = x.size()
 
         n = w * h - 1
 
-        x_minus_mu_square = (
-            x - x.mean(dim=[2, 3], keepdim=True)
-        ).pow(2)
+        x_minus_mu_square = (x - x.mean(dim=[2, 3], keepdim=True)).pow(2)
 
-        y = (
-            x_minus_mu_square
-            / (
-                4
-                * (
-                    x_minus_mu_square.sum(
-                        dim=[2, 3],
-                        keepdim=True
-                    ) / n
-                    + self.e_lambda
-                )
-            )
-            + 0.5
-        )
+        y = x_minus_mu_square / (4 * (x_minus_mu_square.sum(dim=[2, 3], keepdim=True) / n + self.e_lambda)) + 0.5
 
         return x * self.activaton(y)
